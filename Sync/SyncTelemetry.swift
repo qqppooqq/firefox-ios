@@ -5,6 +5,7 @@
 import Foundation
 import Shared
 import Account
+import SwiftyJSON
 
 fileprivate let log = Logger.syncLogger
 
@@ -17,8 +18,18 @@ public enum SyncReason: String {
     case didLogin = "didLogin"
 }
 
+private enum SyncPingReason: String {
+    case shutdown = "shutdown"
+    case schedule = "schedule"
+    case idChanged = "idchanged"
+}
+
 public protocol Stats {
     func hasData() -> Bool
+}
+
+private protocol DictionaryRepresentable {
+    func asDictionary() -> [String: Any]
 }
 
 public struct SyncUploadStats: Stats {
@@ -27,6 +38,15 @@ public struct SyncUploadStats: Stats {
 
     public func hasData() -> Bool {
         return sent > 0 || sentFailed > 0
+    }
+}
+
+extension SyncUploadStats: DictionaryRepresentable {
+    func asDictionary() -> [String: Any] {
+        return [
+            "sent": sent,
+            "sentFailed": sentFailed
+        ]
     }
 }
 
@@ -46,6 +66,18 @@ public struct SyncDownloadStats: Stats {
     }
 }
 
+extension SyncDownloadStats: DictionaryRepresentable {
+    func asDictionary() -> [String: Any] {
+        return [
+            "applied": applied,
+            "succeeded": succeeded,
+            "failed": failed,
+            "newFailed": newFailed,
+            "reconciled": reconciled
+        ]
+    }
+}
+
 // TODO(sleroux): Implement various bookmark validation issues we can run into.
 public struct ValidationStats: Stats {
     public func hasData() -> Bool {
@@ -54,13 +86,14 @@ public struct ValidationStats: Stats {
 }
 
 public class StatsSession {
-    private var took: Int64 = 0
-    private var when: UInt64?
-    private var startUptime: UInt64?
+    var took: Int64 = 0
+    var when: Int64?
 
-    public func start(when: UInt64 = Date.now()) {
+    private var startUptime: Int64?
+
+    public func start(when: Int64 = Int64(Date.now())) {
         self.when = when
-        self.startUptime = DispatchTime.now().uptimeNanoseconds
+        self.startUptime = Int64(DispatchTime.now().uptimeNanoseconds)
     }
 
     public func hasStarted() -> Bool {
@@ -108,18 +141,69 @@ public class SyncEngineStatsSession: StatsSession {
     }
 }
 
+extension SyncEngineStatsSession: DictionaryRepresentable {
+    func asDictionary() -> [String : Any] {
+        return [
+            "name": collection,
+            "took": took,
+            "incoming": downloadStats.asDictionary(),
+            "outgoing": uploadStats.asDictionary()
+        ]
+    }
+}
+
 // Stats and metadata for a sync operation.
 public class SyncOperationStatsSession: StatsSession {
     public let why: SyncReason
     public var uid: String?
     public var deviceID: String?
 
-    private let didLogin: Bool
+    fileprivate let didLogin: Bool
 
     public init(why: SyncReason, uid: String, deviceID: String?) {
         self.why = why
         self.uid = uid
         self.deviceID = deviceID
         self.didLogin = (why == .didLogin)
+    }
+}
+
+extension SyncOperationStatsSession: DictionaryRepresentable {
+    func asDictionary() -> [String : Any] {
+        let whenValue = when ?? 0
+        return [
+            "when": whenValue,
+            "took": took,
+            "didLogin": didLogin,
+            "why": why.rawValue
+        ]
+    }
+}
+
+public extension Telemetry {
+    public static func sendSyncPing(opStats: SyncOperationStatsSession, engineStats: [SyncEngineStatsSession]) {
+        var ping = makeBaseSyncPing(version: 1, discarded: 0, why: .schedule, uid: "tset", deviceID: "test")
+
+        var syncOp = opStats.asDictionary()
+        syncOp["engines"] = engineStats.map { $0.asDictionary() }
+
+        ping["syncs"] = [syncOp]
+
+        let json = JSON(ping)
+        print(json)
+    }
+
+    static func makeSyncPing(opStats: SyncOperationStatsSession, engineStats: [SyncEngineStatsSession]) -> JSON {
+        return JSON([])
+    }
+
+    fileprivate static func makeBaseSyncPing(version: Int, discarded: Int, why: SyncPingReason, uid: String, deviceID: String) -> [String: Any] {
+        return [
+            "version": version,
+            "discarded": discarded,
+            "why": why.rawValue,
+            "uid": uid,
+            "deviceID": deviceID
+        ]
     }
 }

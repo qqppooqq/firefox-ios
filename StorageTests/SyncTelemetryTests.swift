@@ -115,4 +115,18 @@ extension SyncTelemetryTests {
         XCTAssertEqual(uploadStats.sent, 1)
         XCTAssertEqual(uploadStats.sentFailed, 1)
     }
+
+    func testMakeSyncPing() {
+        let mockUID = "1234567890"
+        let mockDeviceID = "testingDevice"
+        let opStats = SyncOperationStatsSession(why: .user,uid: mockUID, deviceID: mockDeviceID)
+        let mockHistoryStats = SyncEngineStatsSession(collection: "mock_history")
+        mockHistoryStats.recordUpload(stats: SyncUploadStats(sent: 29, sentFailed: 2))
+        mockHistoryStats.recordDownload(stats: SyncDownloadStats(applied: 5, succeeded: 4, failed: 1, newFailed: 1, reconciled: 0))
+        let mockEngineStats = [mockHistoryStats]
+
+        let json = Telemetry.makeSyncPing(opStats: opStats, engineStats: mockEngineStats)
+
+        XCTFail()
+    }
 }
