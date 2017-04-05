@@ -147,7 +147,7 @@ class ThirdPartySearchTest: BaseTestCase {
 
         waitforExistence(app.navigationBars["Search"])
         XCTAssert(app.navigationBars["Search"].buttons["Settings"].exists)
-        
+
         app.navigationBars["Search"].buttons["Settings"].tap()
         app.navigationBars["Settings"].buttons["AppSettingsTableViewController.navigationItem.leftBarButtonItem"].tap()
         
@@ -155,9 +155,8 @@ class ThirdPartySearchTest: BaseTestCase {
         tabTrayButton(forApp: app).tap()
         app.buttons["TabTrayController.addTabButton"].tap()
         app.textFields["url"].tap()
+
         app.typeText("strange charm")
-        print(app.scrollViews.otherElements.buttons.debugDescription)
-        
         app.scrollViews.otherElements.buttons["Feeling Lucky search"].tap()
         // Ensure that correct search is done
         let url = app.textFields["url"].value as! String

@@ -21,9 +21,14 @@ class SettingsTest: BaseTestCase {
     func testHelpOpensSUMOInTab() {
         navigator.goto(SettingsScreen)
         let appsettingstableviewcontrollerTableviewTable = app.tables["AppSettingsTableViewController.tableView"]
-        appsettingstableviewcontrollerTableviewTable.staticTexts["Save Logins"].swipeUp()
-        appsettingstableviewcontrollerTableviewTable.staticTexts["Help"].tap()
-
+        appsettingstableviewcontrollerTableviewTable.cells["OpenWith.Setting"].swipeUp()
+        appsettingstableviewcontrollerTableviewTable.staticTexts["Use Compact Tabs"].swipeUp()
+        appsettingstableviewcontrollerTableviewTable.staticTexts["Passcode"].swipeUp()
+        appsettingstableviewcontrollerTableviewTable.staticTexts["Show Tour"].swipeUp()
+        print(app.debugDescription)
+        let helpMenu = appsettingstableviewcontrollerTableviewTable.cells["Help"]
+        helpMenu.tap()
+        sleep(2)
         waitForValueContains(app.textFields["url"], value: "support.mozilla.org")
         waitforExistence(app.webViews.links["mozilla support"])
         XCTAssertTrue(app.webViews.links["mozilla support"].exists)
